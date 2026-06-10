@@ -233,3 +233,110 @@ python3 -m py_compile backend/app.py
 - Añadir auditoría detallada de cambios por entidad.
 - Incorporar recuperación de contraseña y rotación de tokens.
 - Mejorar diseño visual con sistema de componentes.
+
+## Mejoras de fase 2: experiencia profesional, reservas y economía
+
+Esta iteración mantiene la arquitectura local existente y añade una capa funcional y visual más completa sin introducir dependencias externas.
+
+### Diseño móvil y UX
+
+- La navegación se adapta a móvil con barra superior horizontal.
+- Los eventos se muestran como tarjetas responsivas con badges claros de estado, tipo, cobertura, precio y participación.
+- Las tablas administrativas siguen disponibles en escritorio, pero en móvil se priorizan tarjetas para evitar scroll horizontal.
+- Los botones tienen tamaño táctil cómodo y las acciones peligrosas mantienen confirmación visual.
+- Los estados vacíos usan bloques informativos para orientar al usuario.
+
+### Modales de eventos
+
+- **Crear evento** ya no muestra un formulario fijo: se abre desde el botón “Crear evento”.
+- **Editar evento** reutiliza el mismo modal de creación con campos precargados y botón “Guardar cambios”.
+- **Ver detalle** abre un modal con datos operativos, plazas, reserva, precio, duración, ganancia estimada, instrucciones y acciones según rol.
+- Los modales tienen scroll interno y diseño tipo bottom sheet en móvil.
+
+### Precio por hora y ganancias
+
+Cada evento incluye:
+
+- `hourly_rate` / `hourlyRate`.
+- `currency`, por defecto `EUR`.
+- Duración calculada con fecha y hora de inicio/fin.
+- Ganancia estimada por trabajador: `precioPorHora * duraciónHoras`.
+- Coste estimado y confirmado del personal.
+
+Las ganancias confirmadas solo cuentan cuando el administrador marca asistencia como `ATTENDED`.
+
+### Reservas de trabajadores
+
+Cada evento incluye ahora:
+
+- Máximo de plazas normales.
+- Reserva activada/desactivada.
+- Porcentaje de reserva, por defecto 10%.
+- Capacidad de reserva calculada con redondeo hacia arriba (`ceil`).
+
+Decisión técnica documentada: la reserva solo se permite cuando existe `max_workers`, porque la capacidad de reserva se calcula sobre el máximo normal. Si un trabajador normal se sale o es retirado, la aplicación promociona automáticamente al primer trabajador en reserva por orden de inscripción.
+
+La asignación guarda:
+
+- `slot_type`: `NORMAL` o `RESERVE`.
+- `status`: `JOINED`, `ASSIGNED`, `RESERVE`, `CANCELLED`, `ATTENDED`, `NO_SHOW`, `REMOVED`.
+- `attendance_status`: `PENDING`, `ATTENDED`, `NO_SHOW`, `CANCELLED`.
+- `joined_at`, `promoted_at`, `attended_at`, `updated_at`.
+
+### Calendario / agenda
+
+Se añadió una vista de agenda para administrador y trabajador:
+
+- En escritorio y móvil se agrupan eventos por día.
+- El administrador puede filtrar por tipo, estado, cliente y cobertura.
+- El trabajador puede filtrar por tipo, fechas y participación: disponibles, apuntado, reserva o no apuntado.
+- Al pulsar un evento se abre el modal de detalle.
+
+### Área personal y ganancias del trabajador
+
+El trabajador dispone de:
+
+- **Mi perfil**: datos básicos, estado, próximos eventos, reservas, completados y resumen económico.
+- **Mis ganancias**: resumen mensual con eventos, fecha, horas, precio/hora, estimado y confirmado.
+
+Los eventos futuros o pendientes muestran ganancia estimada. La ganancia confirmada depende de asistencia marcada por administrador.
+
+### Gestión de asistencia para administradores
+
+En el modal de detalle del evento, el administrador puede:
+
+- Ver plazas normales y reservas por separado.
+- Asignar trabajadores a plaza normal o reserva.
+- Promocionar reservas manualmente.
+- Quitar trabajadores.
+- Marcar `Asistió` o `No presentado`.
+- Ver coste estimado y coste confirmado del personal.
+
+### Nuevos filtros de eventos
+
+Los eventos pueden filtrarse por:
+
+- Texto.
+- Tipo.
+- Estado.
+- Cliente, en modo administrador.
+- Fecha desde/hasta.
+- Plazas normales disponibles.
+- Reserva disponible.
+- Completo.
+- Falta de trabajadores.
+- Participación del trabajador.
+
+## Flujo recomendado actualizado
+
+1. Ejecuta `npm run db:reset`.
+2. Ejecuta `npm run dev`.
+3. Entra como administrador.
+4. Abre **Eventos** y pulsa **Crear evento**.
+5. Crea un evento publicado con precio por hora, máximo normal y reserva activada.
+6. Abre el detalle del evento y revisa coste estimado, plazas normales y reserva.
+7. Entra como trabajador.
+8. Abre **Disponibles** o **Agenda**, filtra por tipo/fecha y apúntate.
+9. Si el cupo normal está lleno y hay reserva, el alta entra como reserva.
+10. Vuelve como administrador, abre el detalle, promociona una reserva o marca asistencia.
+11. Entra como trabajador y revisa **Mi perfil** y **Ganancias** para comprobar estimado/confirmado.
