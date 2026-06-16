@@ -6,7 +6,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 def load_env():
     env = ROOT / '.env'
     if env.exists():
@@ -16,9 +16,12 @@ def load_env():
                 key, value = line.split('=', 1)
                 os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 load_env()
-DB_PATH = Path(os.getenv('DATABASE_PATH', ROOT / 'backend' / 'dev.db'))
+DB_PATH = Path(os.getenv('DATABASE_PATH', ROOT / 'apps' / 'backend' / 'dev.db'))
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+IS_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
 SECRET = os.getenv('JWT_SECRET', 'local-dev-secret').encode()
 PORT = int(os.getenv('PORT', '4000'))
+CORS_ORIGIN = os.getenv('CORS_ORIGIN', '*')
 LEAVE_HOURS = 24
 ACTIVE = ('JOINED', 'ASSIGNED', 'RESERVE', 'ATTENDED')
 NORMAL_ACTIVE = ('JOINED', 'ASSIGNED', 'ATTENDED')
@@ -28,7 +31,59 @@ EVENT_TYPES = ('Boda','Concierto','Congreso','Fiesta privada','Evento corporativ
 def utcnow(): return datetime.now(timezone.utc)
 def now(): return utcnow().isoformat()
 def iso_days(days): return (utcnow() + timedelta(days=days)).date().isoformat()
+def sql_for_driver(sql):
+    if not IS_POSTGRES:
+        return sql
+    converted = sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+    converted = converted.replace('?', '%s')
+    converted = converted.replace('LIKE', 'ILIKE')
+    return converted
+
+class PostgresCursor:
+    RETURNING_TABLES = ('users', 'worker_profiles', 'clients', 'events', 'event_worker_assignments')
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.lastrowid = None
+    def execute(self, sql, params=None):
+        statement = sql_for_driver(sql)
+        lowered = statement.lstrip().lower()
+        if lowered.startswith('pragma table_info'):
+            self.cursor.execute('SELECT column_name AS name FROM information_schema.columns WHERE table_name=%s', (sql.split('(')[1].split(')')[0],))
+            return self
+        if lowered.startswith('insert into') and ' returning ' not in lowered:
+            table = lowered.split('insert into', 1)[1].strip().split('(', 1)[0].strip()
+            if table in self.RETURNING_TABLES:
+                statement = f'{statement} RETURNING id'
+                self.cursor.execute(statement, params or ())
+                row = self.cursor.fetchone()
+                self.lastrowid = row['id'] if isinstance(row, dict) else row[0]
+                return self
+        self.cursor.execute(statement, params or ())
+        self.lastrowid = getattr(self.cursor, 'lastrowid', None)
+        return self
+    def executescript(self, script):
+        for statement in script.split(';'):
+            statement = statement.strip()
+            if statement:
+                self.execute(statement)
+        return self
+    def fetchone(self): return self.cursor.fetchone()
+    def fetchall(self): return self.cursor.fetchall()
+    def __iter__(self): return iter(self.cursor)
+
+class PostgresConnection:
+    def __init__(self):
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        self.con = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    def cursor(self): return PostgresCursor(self.con.cursor())
+    def execute(self, sql, params=None): return self.cursor().execute(sql, params)
+    def commit(self): return self.con.commit()
+    def close(self): return self.con.close()
+
 def connect():
+    if IS_POSTGRES:
+        return PostgresConnection()
     con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row; con.execute('PRAGMA foreign_keys=ON'); return con
 def rowdict(r): return dict(r) if r else None
 class ApiError(Exception):
@@ -55,7 +110,8 @@ def read_token(token):
     return payload
 
 def migrate():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not IS_POSTGRES:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = connect(); cur = con.cursor()
     cur.executescript('''
     CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('ADMIN','WORKER')),is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -66,10 +122,10 @@ def migrate():
     CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_date); CREATE INDEX IF NOT EXISTS idx_events_type ON events(type); CREATE INDEX IF NOT EXISTS idx_assign_event ON event_worker_assignments(event_id); CREATE INDEX IF NOT EXISTS idx_assign_worker ON event_worker_assignments(worker_id);
     ''')
     # Lightweight additive migrations for databases created by the previous version.
-    for table, columns in {
+    for table, columns in ({
         'events': [('type', "TEXT NOT NULL DEFAULT 'Otro'"), ('hourly_rate', 'REAL NOT NULL DEFAULT 0'), ('currency', "TEXT NOT NULL DEFAULT 'EUR'"), ('reserve_enabled', 'INTEGER NOT NULL DEFAULT 1'), ('reserve_percentage', 'REAL NOT NULL DEFAULT 10')],
         'event_worker_assignments': [('slot_type', "TEXT NOT NULL DEFAULT 'NORMAL'"), ('attendance_status', "TEXT NOT NULL DEFAULT 'PENDING'"), ('joined_at', 'TEXT'), ('promoted_at', 'TEXT'), ('attended_at', 'TEXT')]
-    }.items():
+    }).items():
         existing = {r['name'] for r in cur.execute(f'PRAGMA table_info({table})')}
         for name, ddl in columns:
             if name not in existing: cur.execute(f'ALTER TABLE {table} ADD COLUMN {name} {ddl}')
@@ -183,8 +239,12 @@ def monthly_earnings(con, worker_id):
     return list(months.values())
 
 class Handler(BaseHTTPRequestHandler):
+    def cors_headers(self):
+        self.send_header('Access-Control-Allow-Origin', CORS_ORIGIN)
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     def send_json(self,status,data=None):
-        self.send_response(status); self.send_header('Content-Type','application/json'); self.end_headers()
+        self.send_response(status); self.send_header('Content-Type','application/json'); self.cors_headers(); self.end_headers()
         if data is not None: self.wfile.write(json.dumps(data).encode())
     def body(self):
         n=int(self.headers.get('content-length','0')); return json.loads(self.rfile.read(n) or b'{}')
@@ -335,9 +395,11 @@ class Handler(BaseHTTPRequestHandler):
                 con.commit(); return self.send_json(204)
     def do_GET(self):
         if self.path.startswith('/api/'): return self.route()
-        p = ROOT/'frontend'/(urlparse(self.path).path.lstrip('/') or 'index.html')
-        if not p.exists(): p=ROOT/'frontend'/'index.html'
-        self.send_response(200); self.send_header('Content-Type','text/css' if p.suffix=='.css' else 'application/javascript' if p.suffix=='.js' else 'text/html'); self.end_headers(); self.wfile.write(p.read_bytes())
+        p = ROOT/'apps'/'frontend'/(urlparse(self.path).path.lstrip('/') or 'index.html')
+        if not p.exists(): p=ROOT/'apps'/'frontend'/'index.html'
+        self.send_response(200); self.send_header('Content-Type','text/css' if p.suffix=='.css' else 'application/javascript' if p.suffix=='.js' else 'text/html'); self.cors_headers(); self.end_headers(); self.wfile.write(p.read_bytes())
+    def do_OPTIONS(self):
+        self.send_response(204); self.cors_headers(); self.end_headers()
     def do_POST(self): return self.route()
     def do_PUT(self): return self.route()
     def do_DELETE(self): return self.route()

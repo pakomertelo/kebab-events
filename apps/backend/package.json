@@ -1,0 +1,11 @@
+{
+  "name": "@kebab-events/backend",
+  "private": true,
+  "scripts": {
+    "start": "python3 app.py serve",
+    "migrate": "python3 app.py migrate",
+    "seed": "python3 app.py seed",
+    "reset": "python3 app.py reset",
+    "build": "python3 -m py_compile app.py"
+  }
+}

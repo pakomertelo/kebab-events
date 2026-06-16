@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: kebab-events-api
+    runtime: python
+    rootDir: apps/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 app.py serve
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kebab-events-db
+          property: connectionString
+
+databases:
+  - name: kebab-events-db
+    databaseName: kebab_events
+    user: kebab_events
