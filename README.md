@@ -8,7 +8,7 @@ Los datos se guardan en `localStorage` del navegador, por lo que es ideal para d
 
 - HTML, CSS y JavaScript estático.
 - Persistencia local en el navegador mediante `localStorage`.
-- Deploy estático en Vercel desde `dist/`.
+- Deploy estático en Vercel desde `public/`.
 - Sin backend, sin PostgreSQL, sin SQLite y sin variables de entorno obligatorias.
 
 ## Estructura relevante
@@ -40,7 +40,7 @@ Abre <http://localhost:4000>.
 npm run build
 ```
 
-El build copia `apps/frontend` a `dist/`, que es el directorio que Vercel debe publicar.
+El build copia `apps/frontend` a `public/`, que es el directorio que Vercel debe publicar.
 
 ## Despliegue en Vercel
 
@@ -50,7 +50,7 @@ El build copia `apps/frontend` a `dist/`, que es el directorio que Vercel debe p
    - **Framework Preset:** `Other`
    - **Install Command:** vacío o `npm install`
    - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
+   - **Output Directory:** `public`
 4. Despliega.
 
 No necesitas configurar variables de entorno, bases de datos, servicios serverless ni un backend externo.

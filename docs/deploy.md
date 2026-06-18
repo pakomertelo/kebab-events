@@ -7,7 +7,7 @@ Esta versión de Kebab Events es 100% estática y se despliega solo en Vercel. N
 - **Framework Preset:** `Other`
 - **Install Command:** vacío o `npm install`
 - **Build Command:** `npm run build`
-- **Output Directory:** `dist`
+- **Output Directory:** `public`
 
 ## Pasos
 

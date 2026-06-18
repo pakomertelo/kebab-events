@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "python3 -m http.server 4000 -d apps/frontend",
     "build": "npm run vercel:build",
-    "vercel:build": "rm -rf dist && mkdir -p dist && cp -R apps/frontend/. dist/"
+    "vercel:build": "rm -rf public && mkdir -p public && cp -R apps/frontend/. public/"
   }
 }
