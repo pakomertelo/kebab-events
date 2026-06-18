@@ -1,36 +1,40 @@
-# Guía de despliegue
+# Despliegue en Vercel
 
-## Arquitectura recomendada
+Esta versión de Kebab Events es 100% estática y se despliega solo en Vercel. No requiere backend, base de datos ni variables de entorno.
 
-- Vercel: frontend estático desde `apps/frontend`.
-- Render: backend Python desde `apps/backend`.
-- Render PostgreSQL: base de datos gestionada conectada por `DATABASE_URL`.
+## Configuración Vercel
 
-## Checklist
+- **Framework Preset:** `Other`
+- **Install Command:** vacío o `npm install`
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
 
-1. Crear repo remoto.
-2. Crear Blueprint en Render con `render.yaml`.
-3. Ejecutar migración y seed inicial en Render.
-4. Copiar la URL pública del backend.
-5. Configurar `apps/frontend/config.js` con `API_BASE_URL`.
-6. Crear proyecto Vercel con build `npm run vercel:build` y output `dist`.
-7. Probar login y endpoints `/api/auth/login` y `/api/auth/me`.
+## Pasos
 
-## Variables
+1. Publica el repositorio en GitHub, GitLab o Bitbucket.
+2. Entra en Vercel y pulsa **Add New → Project**.
+3. Importa el repositorio.
+4. Usa la configuración indicada arriba.
+5. Pulsa **Deploy**.
 
-Backend:
+## Comprobación posterior
 
-```env
-DATABASE_URL=postgresql://...
-JWT_SECRET=...
-PORT=4000
-CORS_ORIGIN=https://tu-frontend.vercel.app
-```
+1. Abre la URL generada por Vercel.
+2. Inicia sesión como administrador:
+   - Email: `admin@kebab-events.local`
+   - Contraseña: `Admin123!`
+3. Crea o edita un evento.
+4. Cierra sesión y entra como trabajador:
+   - Email: `ana@kebab-events.local`
+   - Contraseña: `Worker123!`
+5. Comprueba que puedes apuntarte a eventos disponibles.
 
-Frontend:
+## Persistencia
+
+Todos los cambios se guardan en `localStorage`. Para resetear datos de demo en un navegador:
 
 ```js
-window.KEBAB_EVENTS_CONFIG = {
-  API_BASE_URL: 'https://kebab-events-api.onrender.com'
-};
+localStorage.removeItem('kebabEventsStaticDb');
+localStorage.removeItem('token');
+location.reload();
 ```

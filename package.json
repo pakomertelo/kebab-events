@@ -1,22 +1,11 @@
 {
-  "name": "kebab-events-monorepo",
-  "version": "0.1.0",
+  "name": "kebab-events-static",
+  "version": "1.0.0",
   "private": true,
-  "description": "Monorepo para Kebab Events: frontend estático, backend Python y configuración de deploy.",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "description": "Kebab Events como aplicación estática deployable únicamente en Vercel, sin backend ni base de datos.",
   "scripts": {
-    "install:all": "python3 --version && python3 -m pip install -r apps/backend/requirements.txt",
-    "db:migrate": "python3 apps/backend/app.py migrate",
-    "db:seed": "python3 apps/backend/app.py seed",
-    "db:reset": "python3 apps/backend/app.py reset",
-    "dev": "python3 apps/backend/app.py serve",
-    "dev:backend": "python3 apps/backend/app.py serve",
-    "dev:frontend": "python3 apps/backend/app.py serve",
-    "start": "python3 apps/backend/app.py serve",
-    "build": "python3 -m py_compile apps/backend/app.py",
-    "vercel:build": "mkdir -p dist && cp -R apps/frontend/. dist/"
+    "dev": "python3 -m http.server 4000 -d apps/frontend",
+    "build": "npm run vercel:build",
+    "vercel:build": "rm -rf dist && mkdir -p dist && cp -R apps/frontend/. dist/"
   }
 }
