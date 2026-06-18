@@ -1,0 +1,7 @@
+{
+  "name": "@kebab-events/frontend",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p ../../dist && cp -R . ../../dist/"
+  }
+}

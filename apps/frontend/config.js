@@ -1,0 +1,1 @@
+window.KEBAB_EVENTS_CONFIG = window.KEBAB_EVENTS_CONFIG || { API_BASE_URL: '' };

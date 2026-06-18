@@ -1,17 +1,22 @@
 {
-  "name": "kebab-events",
+  "name": "kebab-events-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Aplicación interna para coordinación de eventos, clientes y trabajadores.",
+  "description": "Monorepo para Kebab Events: frontend estático, backend Python y configuración de deploy.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "install:all": "python3 --version",
-    "db:migrate": "python3 backend/app.py migrate",
-    "db:seed": "python3 backend/app.py seed",
-    "db:reset": "python3 backend/app.py reset",
-    "dev": "python3 backend/app.py serve",
-    "dev:backend": "python3 backend/app.py serve",
-    "dev:frontend": "python3 backend/app.py serve",
-    "start": "python3 backend/app.py serve",
-    "build": "python3 -m py_compile backend/app.py"
+    "install:all": "python3 --version && python3 -m pip install -r apps/backend/requirements.txt",
+    "db:migrate": "python3 apps/backend/app.py migrate",
+    "db:seed": "python3 apps/backend/app.py seed",
+    "db:reset": "python3 apps/backend/app.py reset",
+    "dev": "python3 apps/backend/app.py serve",
+    "dev:backend": "python3 apps/backend/app.py serve",
+    "dev:frontend": "python3 apps/backend/app.py serve",
+    "start": "python3 apps/backend/app.py serve",
+    "build": "python3 -m py_compile apps/backend/app.py",
+    "vercel:build": "mkdir -p dist && cp -R apps/frontend/. dist/"
   }
 }

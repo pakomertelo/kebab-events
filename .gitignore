@@ -1,6 +1,8 @@
 .env
-backend/dev.db
-backend/__pycache__/
 *.pyc
+__pycache__/
 node_modules/
 .DS_Store
+apps/backend/dev.db
+backend/dev.db
+dist/
