@@ -6,3 +6,4 @@ node_modules/
 apps/backend/dev.db
 backend/dev.db
 dist/
+public/
